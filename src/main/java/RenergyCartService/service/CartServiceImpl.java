@@ -6,6 +6,7 @@ import RenergyCartService.model.Cart;
 import RenergyCartService.model.CartItem;
 import RenergyCartService.repositories.CartItemRepository;
 import RenergyCartService.repositories.CartRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -57,8 +58,8 @@ public class CartServiceImpl implements CartService {
         }
 
         // Retrieve or create the cart
-        Cart cart = cartRepository.findByUserId(userId).orElse(new Cart());
-        cart.setUserId(userId);
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElse(new Cart(userId, 0.0));
 
         // Check if the item already exists in the cart
         CartItem item = cart.getItems().stream()
@@ -77,11 +78,8 @@ public class CartServiceImpl implements CartService {
         } else {
             item.setQuantity(item.getQuantity() + quantity);
         }
-
         cart.calculateTotalAmount();
-
-        cartRepository.save(cart);
-        return cart;
+        return cartRepository.save(cart);
     }
 
 
@@ -92,26 +90,34 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
+    @Transactional
     public Cart updateItemQuantity(Long userId, Long itemId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+
+        // Find the cart
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
 
+        // Find the specific item
         CartItem item = cart.getItems().stream()
                 .filter(cartItem -> cartItem.getId().equals(itemId))
-                .findFirst().orElseThrow(() -> new IllegalArgumentException("Item not found"));
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Item not found in cart"));
 
-        // Revalidate stock availability using Feign Client
-        //StockDto stock = inventoryServiceClient.getStockByProductId(item.getProductId());
+        // Revalidate stock availability
         StockDto stock = mockStock(item.getProductId());
-
         if (stock.getAvailableQuantity() < quantity) {
             throw new IllegalArgumentException("Not enough stock available.");
         }
 
+        // Update quantity and save
         item.setQuantity(quantity);
-        cartRepository.save(cart);
-        return cart;
+        cart.calculateTotalAmount(); // Recalculate total
+        return cartRepository.save(cart);
     }
+
 
     @Override
     public Cart removeItemFromCart(Long userId, Long itemId) {

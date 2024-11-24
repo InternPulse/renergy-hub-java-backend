@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CartItemDto {
 
+    private Long Id;
+
     @NotNull(message = "Product ID cannot be null")
     private Long productId;
 
@@ -22,4 +24,7 @@ public class CartItemDto {
 
     private Double unitPrice;
     private Double totalPrice;
+
+    public CartItemDto(long l, int i) {
+    }
 }

@@ -1,5 +1,7 @@
 package RenergyCartService.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,6 +22,7 @@ public class CartItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)
+    @JsonManagedReference
     private Cart cart;
 
     @Column(nullable = false)
@@ -40,7 +43,6 @@ public class CartItem {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(nullable = false)
     private Date addedDate;
-
 
     @PrePersist
     @PreUpdate
