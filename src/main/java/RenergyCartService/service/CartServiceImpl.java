@@ -1,24 +1,30 @@
 package RenergyCartService.service;
 
+import RenergyCartService.dto.CartDto;
+import RenergyCartService.dto.CartItemDto;
 import RenergyCartService.dto.ProductDto;
 import RenergyCartService.dto.StockDto;
+import RenergyCartService.mapper.CartMapper;
 import RenergyCartService.model.Cart;
 import RenergyCartService.model.CartItem;
 import RenergyCartService.repositories.CartItemRepository;
 import RenergyCartService.repositories.CartRepository;
+import ch.qos.logback.classic.Logger;
+import jakarta.transaction.Transactional;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 @Service
 public class CartServiceImpl implements CartService {
+    private static final Logger log = (Logger) LoggerFactory.getLogger(CartServiceImpl.class);
 
     @Autowired
     private CartRepository cartRepository;
 
     @Autowired
     private CartItemRepository cartItemRepository;
+
 
     //@Autowired
     //private ProductServiceClient productServiceClient;
@@ -43,96 +49,110 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public Cart addItemToCart(Long userId, Long productId, int quantity) {
+    @Transactional
+    public CartDto addItemToCart(Long userId, CartItemDto cartItemDto) {
         //ProductDto product = productServiceClient.getProductById(productId); (Fetch product details using Feign Client)
         // Fetch product details using the mock method
-        ProductDto product = mockProduct(productId);
+        ProductDto product = mockProduct(cartItemDto.getProductId());
 
         //StockDto stock = inventoryServiceClient.getStockByProductId(productId); (Check stock availability using Feign Client)
         // Check stock availability using the mock method
-        StockDto stock = mockStock(productId);
+        StockDto stock = mockStock(cartItemDto.getProductId());
 
-        if (stock.getAvailableQuantity() < quantity) {
+        if (stock.getAvailableQuantity() < cartItemDto.getQuantity()) {
             throw new IllegalArgumentException("Not enough stock available.");
         }
 
         // Retrieve or create the cart
-        Cart cart = cartRepository.findByUserId(userId).orElse(new Cart());
-        cart.setUserId(userId);
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElse(new Cart(userId, 0.0));
 
         // Check if the item already exists in the cart
         CartItem item = cart.getItems().stream()
-                .filter(cartItem -> cartItem.getProductId().equals(productId))
+                .filter(cartItem -> cartItem.getProductId().equals(cartItemDto.getProductId()))
                 .findFirst()
                 .orElse(null);
 
         if (item == null) {
             item = new CartItem();
-            item.setProductId(productId);
+            item.setProductId(cartItemDto.getProductId());
             item.setName(product.getName());
             item.setPrice(product.getPrice());
-            item.setQuantity(quantity);
+            item.setQuantity(cartItemDto.getQuantity());
             item.setCart(cart);
             cart.getItems().add(item);
         } else {
-            item.setQuantity(item.getQuantity() + quantity);
+            item.setQuantity(item.getQuantity() + cartItemDto.getQuantity());
+        }
+        cart.calculateTotalAmount();
+        return mapToDto(cartRepository.save(cart));
+    }
+
+
+    @Override
+    public CartDto getCartByUserId(Long userId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
+        return mapToDto(cart);
+    }
+
+    @Override
+    @Transactional
+    public CartDto updateItemQuantity(Long userId, Long itemId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
         }
 
-        cart.calculateTotalAmount();
-
-        cartRepository.save(cart);
-        return cart;
-    }
-
-
-    @Override
-    public Optional<Cart> getCartByUserId(Long userId) {
-        return Optional.ofNullable(cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId)));
-    }
-
-    @Override
-    public Cart updateItemQuantity(Long userId, Long itemId, int quantity) {
+        // Find the cart
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
 
+
+        // Find the specific item (alternative: query directly if filtering fails)
         CartItem item = cart.getItems().stream()
-                .filter(cartItem -> cartItem.getId().equals(itemId))
-                .findFirst().orElseThrow(() -> new IllegalArgumentException("Item not found"));
+                .filter(cartItem -> cartItem.getProductId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Item not found in cart"));
 
-        // Revalidate stock availability using Feign Client
-        //StockDto stock = inventoryServiceClient.getStockByProductId(item.getProductId());
+        // Revalidate stock availability
         StockDto stock = mockStock(item.getProductId());
-
         if (stock.getAvailableQuantity() < quantity) {
             throw new IllegalArgumentException("Not enough stock available.");
         }
 
+        // Update quantity and recalculate total
         item.setQuantity(quantity);
-        cartRepository.save(cart);
-        return cart;
+        cart.calculateTotalAmount();
+
+        return mapToDto(cartRepository.save(cart));
     }
 
     @Override
-    public Cart removeItemFromCart(Long userId, Long itemId) {
+    @Transactional
+    public CartDto removeItemFromCart(Long userId, Long productId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
 
-        CartItem item = cart.getItems().stream()
-                .filter(cartItem -> cartItem.getId().equals(itemId))
-                .findFirst().orElseThrow(() -> new IllegalArgumentException("Item not found"));
+        boolean itemRemoved = cart.getItems().removeIf(item -> item.getProductId().equals(productId));
 
-        cart.getItems().remove(item);
-        cartRepository.save(cart);
-        return cart;
+        if (!itemRemoved) {
+            throw new IllegalArgumentException("Item not found in cart");
+        }
+
+        cart.calculateTotalAmount();
+        Cart updatedCart = cartRepository.save(cart);
+        return CartMapper.toCartDto(updatedCart);
     }
 
+
     @Override
-    public void clearCart(Long userId) {
+    @Transactional
+    public CartDto clearCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
         cart.getItems().clear();
         cartRepository.save(cart);
+        return null;
     }
 
     @Override
@@ -143,5 +163,12 @@ public class CartServiceImpl implements CartService {
         return cart.getItems().stream()
                 .mapToDouble(item -> item.getPrice() * item.getQuantity())
                 .sum();
+    }
+
+    private CartDto mapToDto(Cart cart) {
+        if (cart == null) {
+            throw new IllegalArgumentException("Cannot map a null cart to DTO");
+        }
+        return CartMapper.toCartDto(cart);
     }
 }

@@ -1,5 +1,6 @@
 package RenergyCartService.controller;
 
+import RenergyCartService.dto.CartDto;
 import RenergyCartService.dto.CartItemDto;
 import RenergyCartService.model.Cart;
 import RenergyCartService.service.CartService;
@@ -20,39 +21,39 @@ public class CartController {
     private CartService cartService;
 
     @PostMapping("/{userId}/items")
-    public ResponseEntity<Cart> addItemToCart(@PathVariable Long userId,
-                                               @RequestBody CartItemDto cartItemDto) {
-        Cart cart = cartService.addItemToCart(userId, cartItemDto.getProductId(), cartItemDto.getQuantity());
-        return ResponseEntity.ok(cart);
+    public ResponseEntity<CartDto> addItemToCart(@PathVariable Long userId,
+                                              @Valid @RequestBody CartItemDto cartItemDto) {
+        CartDto updatedCart = cartService.addItemToCart(userId, cartItemDto);
+        return ResponseEntity.ok(updatedCart);
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<Cart> getCartByUserId(@PathVariable Long userId) {
-        Cart cart = cartService.getCartByUserId(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart not found for user " + userId));
+    public ResponseEntity<CartDto> getCartByUserId(@PathVariable Long userId) {
+        CartDto cart = cartService.getCartByUserId(userId);
         return ResponseEntity.ok(cart);
     }
 
 
-    @PutMapping("/{userId}/items/{itemId}")
-    public ResponseEntity<Cart> updateItemQuantity(
+    @PutMapping("/{userId}/items/{productId}")
+    public ResponseEntity<CartDto> updateItemQuantity(
             @PathVariable Long userId,
-            @PathVariable Long itemId,
-            @Valid @RequestBody CartItemDto cartItemDto) {
-        Cart cart = cartService.updateItemQuantity(userId, itemId, cartItemDto.getQuantity());
-        return ResponseEntity.ok(cart);
+            @PathVariable Long productId,
+            @RequestParam ("quantity") int quantity) {
+        CartDto updatedCart = cartService.updateItemQuantity(userId, productId, quantity);
+        return ResponseEntity.ok(updatedCart);
     }
 
-    @DeleteMapping("/{userId}/items/{itemId}")
-    public ResponseEntity<Cart> removeItemFromCart(
-            @PathVariable Long userId, @PathVariable Long itemId) {
-        Cart cart = cartService.removeItemFromCart(userId, itemId);
-        return ResponseEntity.ok(cart);
+    @DeleteMapping("/{userId}/items/{productId}")
+    public ResponseEntity<CartDto> removeItemFromCart(
+            @PathVariable Long userId,
+            @PathVariable Long productId) {
+        CartDto updatedCart = cartService.removeItemFromCart(userId, productId);
+        return ResponseEntity.ok(updatedCart);
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> clearCart(@PathVariable Long userId) {
-        cartService.clearCart(userId);
+    public ResponseEntity<CartDto> clearCart(@PathVariable Long userId) {
+        CartDto updatedCart = cartService.clearCart(userId);
         return ResponseEntity.noContent().build();
     }
 
