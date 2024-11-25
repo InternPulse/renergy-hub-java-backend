@@ -1,20 +1,18 @@
 package RenergyCartService.service;
 
-import RenergyCartService.model.Cart;
-
-import java.util.Optional;
+import RenergyCartService.dto.CartDto;
+import RenergyCartService.dto.CartItemDto;
 
 public interface CartService {
-    Cart addItemToCart(Long userId, Long productId, int quantity);
+    CartDto addItemToCart(Long userId, CartItemDto cartItemDto);
 
-    Optional<Cart> getCartByUserId(Long userId);
+    CartDto getCartByUserId(Long userId);
 
-    Cart updateItemQuantity(Long userId, Long itemId, int quantity);
+    CartDto updateItemQuantity(Long userId, Long productId, int quantity);
 
-    Cart removeItemFromCart(Long userId, Long itemId);
+    CartDto removeItemFromCart(Long userId, Long itemId);
 
-    void clearCart(Long userId);
+    CartDto clearCart(Long userId);
 
     double calculateCartTotal(Long userId);
 }
-

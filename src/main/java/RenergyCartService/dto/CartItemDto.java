@@ -11,18 +11,16 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CartItemDto {
 
-    private Long Id;
-
     @NotNull(message = "Product ID cannot be null")
     private Long productId;
 
-    private String productName;
+    private String name;
 
     @NotNull(message = "Quantity cannot be null")
     @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
 
-    private Double unitPrice;
+    private Double price;
     private Double totalPrice;
 
     public CartItemDto(long l, int i) {

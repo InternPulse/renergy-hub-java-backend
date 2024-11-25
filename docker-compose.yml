@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  app:
+    image: cartservice:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cartservice_app
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_DATASOURCE_URL: ${DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
