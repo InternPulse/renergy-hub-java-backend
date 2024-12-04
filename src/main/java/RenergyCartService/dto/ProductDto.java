@@ -11,4 +11,5 @@ public class ProductDto {
     private Long id; // Product ID
     private String name; // Product name
     private Double price; // Product price
+    private int stock;
 }
