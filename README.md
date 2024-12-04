@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-Live link: is at http://
+Live link: is at https://renergy-hub-java-backend-9.onrender.com/
 
-Doc link: https://
+Doc link: https://internpulse-9255.postman.co/workspace/Internpulse-Workspace~17f09322-7b62-4b07-8443-636ef5919382/folder/36548151-f463f13d-b2ef-4492-b271-6ce736b0b8d4?action=share&creator=39966806&ctx=documentation
 
 ## Installation Instructions
 ### Prerequisites
@@ -12,13 +12,13 @@ Doc link: https://
 Before setting up the project locally, ensure you have the following prerequisites installed:
 
 - [Node.js](https://nodejs.org) (>=20.14.0).
-- A Database System (e.g., PostgreSQL, MySQL, SQLite)
+- A Database System  PostgreSQL)
 
 ### How to run API Locally
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/InternPulse/property-hive-backend-two.git
+git clone https://github.com/InternPulse/renergy-hub-java-backend
 ```
 
 2. Change into the parent directory:
