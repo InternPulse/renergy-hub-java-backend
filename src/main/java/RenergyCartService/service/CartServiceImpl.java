@@ -3,7 +3,6 @@ package RenergyCartService.service;
 import RenergyCartService.dto.CartDto;
 import RenergyCartService.dto.CartItemDto;
 import RenergyCartService.dto.ProductDto;
-import RenergyCartService.dto.StockDto;
 import RenergyCartService.mapper.CartMapper;
 import RenergyCartService.model.Cart;
 import RenergyCartService.model.CartItem;
@@ -26,41 +25,20 @@ public class CartServiceImpl implements CartService {
     private CartItemRepository cartItemRepository;
 
 
-    //@Autowired
-    //private ProductServiceClient productServiceClient;
-
-    //@Autowired
-    //private InventoryServiceClient inventoryServiceClient;
-
-    // Mocked ProductServiceClient and InventoryServiceClient interactions
-    private ProductDto mockProduct(Long productId) {
-        ProductDto product = new ProductDto();
-        product.setId(productId);
-        product.setName("Mock Product Name"); // Mocked product name
-        product.setPrice(100.0); // Mocked price
-        return product;
-    }
-
-    private StockDto mockStock(Long productId) {
-        StockDto stock = new StockDto();
-        stock.setProductId(productId);
-        stock.setAvailableQuantity(50); // Mocked available quantity
-        return stock;
-    }
+    @Autowired
+    private ProductServiceClient productServiceClient;
 
     @Override
     @Transactional
     public CartDto addItemToCart(Long userId, CartItemDto cartItemDto) {
-        //ProductDto product = productServiceClient.getProductById(productId); (Fetch product details using Feign Client)
-        // Fetch product details using the mock method
-        ProductDto product = mockProduct(cartItemDto.getProductId());
+        userId = userId != null ? userId : 1L;
 
-        //StockDto stock = inventoryServiceClient.getStockByProductId(productId); (Check stock availability using Feign Client)
-        // Check stock availability using the mock method
-        StockDto stock = mockStock(cartItemDto.getProductId());
+        // Fetch product details
+        ProductDto product = productServiceClient.getProductById(cartItemDto.getProductId());
 
-        if (stock.getAvailableQuantity() < cartItemDto.getQuantity()) {
-            throw new IllegalArgumentException("Not enough stock available.");
+
+        if (cartItemDto.getQuantity() > product.getStock()) {
+            throw new IllegalArgumentException("Not enough stock available for product: " + product.getName());
         }
 
         // Retrieve or create the cart
@@ -82,8 +60,13 @@ public class CartServiceImpl implements CartService {
             item.setCart(cart);
             cart.getItems().add(item);
         } else {
-            item.setQuantity(item.getQuantity() + cartItemDto.getQuantity());
+            int newQuantity = item.getQuantity() + cartItemDto.getQuantity();
+            if (newQuantity > product.getStock()) {
+                throw new IllegalArgumentException("Not enough stock available for product: " + product.getName());
+            }
+            item.setQuantity(newQuantity);
         }
+
         cart.calculateTotalAmount();
         return mapToDto(cartRepository.save(cart));
     }
@@ -107,16 +90,16 @@ public class CartServiceImpl implements CartService {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
 
-
-        // Find the specific item (alternative: query directly if filtering fails)
+        // Find the specific item
         CartItem item = cart.getItems().stream()
                 .filter(cartItem -> cartItem.getProductId().equals(itemId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Item not found in cart"));
 
         // Revalidate stock availability
-        StockDto stock = mockStock(item.getProductId());
-        if (stock.getAvailableQuantity() < quantity) {
+        ProductDto product = productServiceClient.getProductById(item.getProductId()); // Replace with Feign client call
+
+        if (product.getStock() < quantity) {
             throw new IllegalArgumentException("Not enough stock available.");
         }
 
@@ -126,6 +109,7 @@ public class CartServiceImpl implements CartService {
 
         return mapToDto(cartRepository.save(cart));
     }
+
 
     @Override
     @Transactional
@@ -144,15 +128,15 @@ public class CartServiceImpl implements CartService {
         return CartMapper.toCartDto(updatedCart);
     }
 
-
     @Override
     @Transactional
     public CartDto clearCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Cart not found for user " + userId));
         cart.getItems().clear();
-        cartRepository.save(cart);
-        return null;
+
+        Cart updatedCart = cartRepository.save(cart);
+        return CartMapper.toCartDto(updatedCart);
     }
 
     @Override

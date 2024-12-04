@@ -2,6 +2,7 @@ package RenergyCartService.model;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +24,7 @@ public class Cart {
     private Long id;
 
     @Column(nullable = false)
+    @NotNull
     private Long userId;
 
 
@@ -41,7 +43,12 @@ public class Cart {
     @Temporal(TemporalType.TIMESTAMP)
     private Date updatedDate;
 
-    public Cart(Long userId, double v) {
+    public Cart(Long userId, Double totalAmount) {
+        this.userId = userId;
+        this.totalAmount = totalAmount;
+        this.items = new ArrayList<>();
+        this.createdDate = new Date();
+        this.updatedDate = new Date();
     }
 
     // Automatically set dates before persistence and updates
@@ -55,6 +62,9 @@ public class Cart {
     protected void onUpdate() {
         this.updatedDate = new Date();
     }
+
+
+
 
     // Calculates the total amount based on the items in the cart
     public void calculateTotalAmount() {
